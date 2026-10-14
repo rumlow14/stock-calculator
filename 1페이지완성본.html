@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>스마트 투자 계산기 (평단가 & 도파민 목표 수익 & 분할매도)</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: #131b2e;
+      --card-border: #1e293b;
+      --input-bg: #0a0f1d;
+      --text: #f8fafc;
+      --subtext: #94a3b8;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --accent: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 12px; display: flex; justify-content: center; }
+    .container { width: 100%; max-width: 680px; padding-bottom: 50px; }
+
+    header { text-align: center; margin-bottom: 12px; }
+    header h1 { font-size: 1.35rem; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+    header p { font-size: 0.78rem; color: var(--subtext); margin-top: 3px; }
+
+    /* SVG 국기 버튼 바 (자산 대분류 탭) */
+    .asset-mode-bar { display: flex; gap: 6px; margin-bottom: 10px; }
+    .asset-card-btn {
+      flex: 1; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px;
+      padding: 8px 4px; display: flex; align-items: center; justify-content: center; gap: 6px;
+      cursor: pointer; transition: 0.2s; color: var(--subtext); font-size: 0.82rem; font-weight: 700;
+    }
+    .asset-card-btn.active { background: #1e293b; border-color: var(--primary); color: #fff; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25); }
+    .flag-icon { width: 18px; height: 13px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
+
+    /* 종목 슬라이더 + 보이는 슬라이드 바(스크롤바) + 우측 붙박이 추가 버튼 */
+    .slot-slider-wrap {
+      display: flex; align-items: center; gap: 6px; margin-bottom: 10px;
+      background: #090e1a; border: 1px solid var(--card-border); border-radius: 14px; padding: 5px 8px;
+    }
+    .slide-arrow {
+      background: #131b2e; border: 1px solid var(--card-border); color: #94a3b8; width: 24px; height: 32px;
+      border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer;
+      font-size: 1rem; user-select: none; flex-shrink: 0; transition: 0.2s;
+    }
+    .slide-arrow:hover { background: #1e293b; color: #fff; border-color: #3b82f6; }
+    
+    /* 눈에 보이고 부드럽게 밀리는 슬라이드 바 */
+    .slot-bar {
+      display: flex; gap: 6px; overflow-x: auto; scroll-behavior: smooth; padding: 3px 2px 7px 2px;
+      scrollbar-width: thin; scrollbar-color: #3b82f6 #131b2e; flex: 1;
+    }
+    .slot-bar::-webkit-scrollbar { height: 4px; }
+    .slot-bar::-webkit-scrollbar-track { background: #131b2e; border-radius: 4px; }
+    .slot-bar::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 4px; }
+    .slot-bar::-webkit-scrollbar-thumb:hover { background: #60a5fa; }
+
+    .slot-chip {
+      background: var(--card-bg); border: 1px solid var(--card-border); color: var(--subtext);
+      padding: 5px 10px; border-radius: 12px; font-size: 0.76rem; font-weight: 600; cursor: pointer;
+      display: flex; align-items: center; gap: 5px; white-space: nowrap; flex-shrink: 0; transition: 0.2s;
+    }
+    .slot-chip.active { background: #1e293b; border-color: var(--primary); color: #60a5fa; }
+    .slot-chip .del-slot { font-size: 0.82rem; color: var(--subtext); margin-left: 2px; }
+    .slot-chip .del-slot:hover { color: var(--danger); }
+
+    /* 우측 고정 [+] 추가 버튼 */
+    .btn-fixed-add {
+      background: #1e3a8a33; border: 1px dashed var(--primary); color: #60a5fa;
+      padding: 6px 11px; border-radius: 10px; font-size: 0.76rem; cursor: pointer;
+      white-space: nowrap; flex-shrink: 0; font-weight: 700; transition: 0.2s;
+    }
+    .btn-fixed-add:hover { background: #2563eb; color: #fff; border-style: solid; }
+
+    /* 미국 주식 환율 바 */
+    .fx-bar { background: #0e172a; border: 1px dashed #334155; border-radius: 7px; padding: 7px 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; }
+    .fx-left { display: flex; align-items: center; gap: 6px; }
+    .fx-right { display: flex; align-items: center; gap: 5px; }
+    .fx-input { width: 68px; background: #131b2e; border: 1px solid var(--card-border); color: #fff; padding: 2px 5px; border-radius: 4px; text-align: right; font-size: 0.78rem; font-weight: 700; }
+    .btn-fx-refresh {
+      background: #1e293b; border: 1px solid #334155; color: #93c5fd; font-size: 0.7rem;
+      padding: 3px 6px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 3px; font-weight: 600; transition: 0.2s;
+    }
+    .btn-fx-refresh:hover { background: #2563eb; color: #fff; border-color: #3b82f6; }
+
+    /* 핵심 3대 탭 */
+    .main-tabs { display: flex; background: #070b14; border-radius: 9px; padding: 3px; margin-bottom: 12px; border: 1px solid var(--card-border); }
+    .tab-btn { flex: 1; padding: 9px 3px; background: none; border: none; color: var(--subtext); font-size: 0.84rem; font-weight: 700; cursor: pointer; border-radius: 6px; transition: 0.2s; text-align: center; }
+    .tab-btn.active { background: var(--primary); color: #fff; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); }
+
+    .card { background: var(--card-bg); border-radius: 12px; padding: 13px; border: 1px solid var(--card-border); margin-bottom: 12px; }
+
+    /* 슬림 1줄 인라인 헤더 */
+    .slim-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; }
+    .title-inline-group { display: flex; align-items: center; gap: 6px; }
+    .card-title-text { font-size: 0.92rem; font-weight: 700; color: #fff; }
+    .inline-edit-input { background: #0b1329; border: 1px solid var(--primary); color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; font-weight: 700; width: 115px; outline: none; }
+    .btn-mini-rename {
+      background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.72rem;
+      padding: 2px 6px; border-radius: 4px; cursor: pointer; transition: 0.15s; font-weight: 600;
+    }
+    .btn-mini-rename:hover { color: #fff; border-color: var(--primary); }
+
+    /* 데이터 동기화 가져오기 버튼 */
+    .btn-sync-data {
+      background: #1e3a8a33; border: 1px solid #3b82f6; color: #60a5fa; font-size: 0.72rem;
+      padding: 4px 8px; border-radius: 6px; cursor: pointer; font-weight: 700; transition: all 0.2s;
+    }
+    .btn-sync-data:hover { background: #2563eb; color: #fff; }
+
+    /* 초슬림 매수/매도 행 */
+    .row-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+    .slim-row {
+      background: #0d1424; border: 1px solid var(--card-border); border-radius: 7px;
+      padding: 6px 8px; display: flex; flex-direction: column; gap: 4px;
+    }
+    .slim-row-main { display: grid; grid-template-columns: 36px 1fr 1.35fr 22px; gap: 5px; align-items: center; }
+    .row-num-badge { font-size: 0.72rem; font-weight: 700; color: #93c5fd; background: #1e293b; padding: 5px 0; border-radius: 4px; text-align: center; }
+    
+    .input-box {
+      width: 100%; background: var(--input-bg); border: 1px solid var(--card-border); color: #fff;
+      padding: 6px 7px; border-radius: 6px; font-size: 0.86rem; outline: none; transition: 0.15s;
+    }
+    .input-box:focus { border-color: var(--primary); }
+
+    .qty-wrap { display: flex; gap: 2px; align-items: center; }
+    .btn-quick {
+      background: #1e293b; border: 1px solid #334155; color: #93c5fd; font-size: 0.65rem;
+      font-weight: 700; padding: 6px 4px; border-radius: 4px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-quick:hover { background: #2563eb; color: #fff; border-color: #3b82f6; }
+
+    /* 분할매도 비중 칩 바 */
+    .pct-chips-bar {
+      display: flex; gap: 3px; align-items: center; justify-content: flex-end; padding-top: 2px;
+    }
+    .pct-chip {
+      background: #182238; border: 1px solid #27354f; color: #94a3b8; font-size: 0.65rem; font-weight: 700;
+      padding: 2px 5px; border-radius: 3px; cursor: pointer; transition: 0.15s;
+    }
+    .pct-chip:hover { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+    .pct-chip.highlight {
+      background: #1e3a8a55; border-color: #38bdf8; color: #38bdf8;
+    }
+    .pct-chip.highlight:hover { background: #0284c7; color: #fff; }
+
+    .slim-row-sub { display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem; padding: 0 2px; }
+    .sub-hint-text { color: var(--subtext); }
+    .sub-sum-text { color: var(--accent); font-weight: 600; }
+
+    .del-btn { background: none; border: none; color: #64748b; font-size: 1.05rem; cursor: pointer; line-height: 1; padding: 2px; text-align: center; }
+    .del-btn:hover { color: var(--danger); }
+
+    .btn-row { display: flex; gap: 6px; margin-bottom: 6px; }
+    .action-btn { flex: 1; padding: 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 700; border: none; cursor: pointer; transition: 0.2s; }
+    .btn-add { background: #1e3a8a33; color: #60a5fa; border: 1px dashed var(--primary); }
+    .btn-add:hover { background: #1e3a8a55; }
+    .btn-reset { background: #1e293b; color: var(--subtext); max-width: 85px; }
+    .btn-reset:hover { color: #fff; }
+
+    /* 수수료 설정 박스 */
+    .fee-box { background: #0a0f1d; border: 1px solid var(--card-border); border-radius: 7px; padding: 7px 9px; margin-top: 6px; }
+    .fee-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .fee-top label { display: flex; align-items: center; gap: 5px; font-size: 0.76rem; font-weight: 600; cursor: pointer; }
+    .fee-top input[type="checkbox"] { accent-color: var(--primary); width: 14px; height: 14px; }
+    .fee-presets { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+    .preset-chip {
+      background: #1e293b; border: 1px solid #334155; color: var(--subtext);
+      padding: 3px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: 0.2s;
+    }
+    .preset-chip.active { background: #2563eb; color: #fff; border-color: #3b82f6; }
+    .fee-custom-wrap { display: inline-flex; align-items: center; gap: 3px; margin-left: auto; }
+    .fee-custom-input { width: 48px; background: #131b2e; border: 1px solid var(--card-border); color: #fff; padding: 2px 4px; border-radius: 4px; text-align: right; font-size: 0.76rem; }
+
+    /* 결과 보드 */
+    .result-card { background: #080d1a; border: 1px solid #1e3a8a; border-radius: 9px; padding: 12px; margin-top: 9px; }
+    .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .result-box { display: flex; flex-direction: column; }
+    .result-box.full { grid-column: span 2; }
+    .result-box.border-top { border-top: 1px dashed #1e293b; padding-top: 5px; margin-top: 2px; }
+    .result-lbl { font-size: 0.7rem; color: var(--subtext); margin-bottom: 2px; }
+    .result-num { font-size: 0.98rem; font-weight: 700; color: #fff; }
+    .result-num.hero { color: #38bdf8; font-size: 1.25rem; }
+    .result-num.green { color: var(--accent); }
+    .result-num.yellow { color: var(--warning); }
+    .result-num.red { color: var(--danger); }
+
+    /* 대확장 도파민 보상 박스 */
+    .reward-box {
+      background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid #3b82f6;
+      border-radius: 8px; padding: 9px 11px; margin-top: 8px; display: flex; align-items: center; gap: 8px;
+    }
+    .reward-icon { font-size: 1.3rem; flex-shrink: 0; }
+    .reward-text { color: #f8fafc; font-weight: 700; font-size: 0.82rem; line-height: 1.35; }
+
+    .btn-image-save {
+      width: 100%; background: #1e293b; border: 1px solid #334155; color: #f8fafc;
+      padding: 9px; border-radius: 6px; font-size: 0.82rem; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 9px; transition: 0.2s;
+    }
+    .btn-image-save:hover { background: #2563eb; border-color: #3b82f6; color: #fff; }
+
+    .form-group { margin-bottom: 9px; }
+    .form-label { display: block; font-size: 0.76rem; color: var(--subtext); margin-bottom: 3px; }
+
+    .seo-box { font-size: 0.76rem; color: var(--subtext); line-height: 1.5; padding: 8px 4px; }
+    .seo-box h3 { color: var(--text); font-size: 0.85rem; margin-bottom: 3px; }
+
+    #shareCanvas { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>스마트 투자 계산기</h1>
+    <p>종목별 분할매수 평단가 · 도파민 목표 수익 · 분할매도 손익</p>
+  </header>
+
+  <!-- SVG 국기 버튼 바 (자산 대분류 탭) -->
+  <div class="asset-mode-bar">
+    <div class="asset-card-btn active" id="mode_kr" onclick="setAssetMode('KR')">
+      <svg class="flag-icon" viewBox="0 0 36 24">
+        <rect width="36" height="24" fill="#ffffff" rx="2"/>
+        <circle cx="18" cy="12" r="6" fill="#cd2e3a"/>
+        <path d="M 12,12 A 6,6 0 0,0 24,12 A 3,3 0 0,0 18,12 A 3,3 0 0,1 12,12 Z" fill="#0047a0"/>
+        <g stroke="#000" stroke-width="0.8">
+          <line x1="8" y1="5" x2="11" y2="7"/><line x1="7" y1="6" x2="10" y2="8"/><line x1="6" y1="7" x2="9" y2="9"/>
+          <line x1="25" y1="15" x2="28" y2="17"/><line x1="26" y1="16" x2="29" y2="18"/><line x1="27" y1="17" x2="30" y2="19"/>
+        </g>
+      </svg>
+      <span>한국 주식</span>
+    </div>
+
+    <div class="asset-card-btn" id="mode_us" onclick="setAssetMode('US')">
+      <svg class="flag-icon" viewBox="0 0 36 24">
+        <rect width="36" height="24" fill="#bf0a30" rx="2"/>
+        <line x1="0" y1="3.7" x2="36" y2="3.7" stroke="#fff" stroke-width="1.8"/>
+        <line x1="0" y1="7.4" x2="36" y2="7.4" stroke="#fff" stroke-width="1.8"/>
+        <line x1="0" y1="11.1" x2="36" y2="11.1" stroke="#fff" stroke-width="1.8"/>
+        <line x1="0" y1="14.8" x2="36" y2="14.8" stroke="#fff" stroke-width="1.8"/>
+        <line x1="0" y1="18.5" x2="36" y2="18.5" stroke="#fff" stroke-width="1.8"/>
+        <line x1="0" y1="22.2" x2="36" y2="22.2" stroke="#fff" stroke-width="1.8"/>
+        <rect width="16" height="13" fill="#002868"/>
+        <circle cx="8" cy="6.5" r="2.5" fill="#ffffff"/>
+      </svg>
+      <span>미국 주식</span>
+    </div>
+
+    <div class="asset-card-btn" id="mode_coin" onclick="setAssetMode('COIN')">
+      <svg class="flag-icon" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" fill="#f59e0b"/>
+        <path d="M11 7h3a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-3m0 0h4a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-4m0-8v8m2-10v2m0 8v2" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+      </svg>
+      <span>가상자산</span>
+    </div>
+  </div>
+
+  <!-- 슬라이더 + 고정 추가 버튼 래퍼 -->
+  <div class="slot-slider-wrap">
+    <button class="slide-arrow" onclick="scrollSlots(-140)">‹</button>
+    <div class="slot-bar" id="slotBar"></div>
+    <button class="slide-arrow" onclick="scrollSlots(140)">›</button>
+    <button class="btn-fixed-add" onclick="addNewSlot()">+ 추가</button>
+  </div>
+
+  <!-- 미국 주식 전용 환율 바 -->
+  <div class="fx-bar" id="fxBar" style="display: none;">
+    <div class="fx-left">
+      <span>💵 적용 환율 (USD/KRW)</span>
+      <button class="btn-fx-refresh" id="btnFxRefresh" onclick="fetchLiveFxRate(this)" title="실시간 달러 환율 시세 동기화">
+        🔄 실시간 시세
+      </button>
+    </div>
+    <div class="fx-right">
+      <input type="text" id="fxRate" class="fx-input" value="1,380" oninput="onFxChange(this)"> 원
+    </div>
+  </div>
+
+  <!-- 핵심 3대 탭 -->
+  <div class="main-tabs">
+    <button class="tab-btn active" id="tabBtn1" onclick="switchMainTab(1)">📊 분할매수 평단가</button>
+    <button class="tab-btn" id="tabBtn2" onclick="switchMainTab(2)">🎯 목표가 수익 계산</button>
+    <button class="tab-btn" id="tabBtn3" onclick="switchMainTab(3)">💰 분할매도 손익</button>
+  </div>
+
+  <!-- ================= TAB 1: 분할매수 평단가 ================= -->
+  <div id="tabContent1">
+    <div class="card">
+      <div class="slim-card-head">
+        <div class="title-inline-group" id="titleGroupTab1">
+          <span class="card-title-text" id="tab1Title">종목 분할매수</span>
+          <button class="btn-mini-rename" onclick="startRenameInline()">✏️ 수정</button>
+        </div>
+        <span style="font-size:0.72rem; color:var(--subtext);">실시간 평단 산출</span>
+      </div>
+
+      <div class="row-list" id="rowContainer"></div>
+
+      <div class="btn-row">
+        <button class="action-btn btn-add" onclick="addRow()">+ 매수 차수 추가</button>
+        <button class="action-btn btn-reset" onclick="resetTab1()">초기화</button>
+      </div>
+
+      <!-- 수수료 설정 -->
+      <div class="fee-box">
+        <div class="fee-top">
+          <label>
+            <input type="checkbox" id="t1_useFee" onchange="toggleFeeUse()">
+            <span>수수료·거래세 반영 (실질 본전가)</span>
+          </label>
+          <div class="fee-custom-wrap">
+            <input type="text" id="t1_feeRate" class="fee-custom-input" value="0.18" oninput="onCustomFeeInput(this)">
+            <span style="font-size:0.72rem; color:var(--subtext);">%</span>
+          </div>
+        </div>
+        <div class="fee-presets" id="feePresetList"></div>
+      </div>
+
+      <!-- 결과 보드 -->
+      <div class="result-card">
+        <div class="result-grid">
+          <div class="result-box full">
+            <span class="result-lbl">최종 평균 단가</span>
+            <span class="result-num hero" id="t1_finalAvg">0</span>
+          </div>
+          <div class="result-box">
+            <span class="result-lbl">총 매수 수량</span>
+            <span class="result-num" id="t1_totalQty">0</span>
+          </div>
+          <div class="result-box">
+            <span class="result-lbl">총 투자 금액</span>
+            <span class="result-num green" id="t1_totalCost">0</span>
+          </div>
+
+          <div class="result-box full border-top" id="t1_bepWrap" style="display:none;">
+            <span class="result-lbl">수수료 포함 실질 본전 탈출가 (BEP)</span>
+            <span class="result-num yellow" id="t1_bepPrice">0</span>
+          </div>
+        </div>
+
+        <button class="btn-image-save" onclick="generateShareCard('buy_tab1')">
+          📸 결과 이미지 저장
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TAB 2: 🎯 목표가 수익 계산 ================= -->
+  <div id="tabContent2" style="display: none;">
+    <div class="card">
+      <div class="slim-card-head">
+        <div class="title-inline-group">
+          <span class="card-title-text" id="tab2Title">🎯 목표 주가 도달 시 예상 순수익</span>
+        </div>
+        <button class="btn-sync-data" id="btnSyncTab2" onclick="importFromTab1('tab2', this)">📥 현재 평단가 불러오기</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">내 보유 평단가</label>
+        <input type="text" class="input-box" id="t2_p0" inputmode="decimal" placeholder="예: 65,000" oninput="handleSmartInput(this, 't2_p0')">
+        <div class="sub-hint-text" id="t2_p0_hint" style="margin-top:2px; min-height:11px;"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">보유 수량</label>
+        <input type="text" class="input-box" id="t2_q0" inputmode="decimal" placeholder="예: 100" oninput="handleSmartInput(this, 't2_q0')">
+      </div>
+      <div class="form-group">
+        <label class="form-label">희망하는 목표 매도가</label>
+        <input type="text" class="input-box" id="t2_pTarget" inputmode="decimal" placeholder="예: 85,000" oninput="handleSmartInput(this, 't2_pTarget')">
+        <div class="sub-hint-text" id="t2_pTarget_hint" style="margin-top:2px; min-height:11px;"></div>
+      </div>
+
+      <div class="result-card">
+        <div class="result-grid">
+          <div class="result-box full">
+            <span class="result-lbl">🎉 목표 달성 시 예상 순수익</span>
+            <span class="result-num hero green" id="t2_estProfit">0 원</span>
+          </div>
+          <div class="result-box">
+            <span class="result-lbl">예상 수익률</span>
+            <span class="result-num green" id="t2_estReturn">+0.00%</span>
+          </div>
+          <div class="result-box">
+            <span class="result-lbl">총 평가 회수금</span>
+            <span class="result-num" id="t2_estTotalRecover">0 원</span>
+          </div>
+        </div>
+
+        <div class="reward-box" id="rewardBox" style="display:none;">
+          <span class="reward-icon" id="rewardIcon">🍗</span>
+          <span class="reward-text" id="rewardText">목표 달성 축하 메시지</span>
+        </div>
+
+        <button class="btn-image-save" onclick="generateShareCard('goal')">
+          📸 목표 수익 리포트 이미지 저장
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TAB 3: 💰 분할매도 손익 ================= -->
+  <div id="tabContent3" style="display: none;">
+    <div class="card">
+      <div class="slim-card-head">
+        <div class="title-inline-group">
+          <span class="card-title-text" id="tab3Title">1. 기존 보유 상태</span>
+        </div>
+        <button class="btn-sync-data" id="btnSyncTab3" onclick="importFromTab1('tab3', this)">📥 현재 평단가 불러오기</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">매수 평단가</label>
+        <input type="text" class="input-box" id="sell_p0" inputmode="decimal" placeholder="예: 50,000" oninput="handleSmartInput(this, 'sell_p0')">
+        <div class="sub-hint-text" id="sell_p0_hint" style="margin-top:2px; min-height:11px;"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">총 보유 수량</label>
+        <input type="text" class="input-box" id="sell_q0" inputmode="decimal" placeholder="예: 200" oninput="handleSmartInput(this, 'sell_q0')">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="slim-card-head">
+        <span class="card-title-text">2. 분할 매도 계획</span>
+      </div>
+
+      <div class="row-list" id="sellRowContainer"></div>
+
+      <div class="btn-row">
+        <button class="action-btn btn-add" onclick="addSellRow()">+ 매도 차수 추가</button>
+        <button class="action-btn btn-reset" onclick="resetSellRows()">초기화</button>
+      </div>
+
+      <div class="result-card">
+        <div class="result-grid">
+          <div class="result-box full">
+            <span class="result-lbl">총 실현 손익 (확정 손익)</span>
+            <span class="result-num hero" id="sell_totalProfit">0 원</span>
+          </div>
+          <div class="result-box">
+            <span class="result-lbl">평균 매도 수익률</span>
+            <span class="result-num" id="sell_avgReturn">+0.00%</span>
+          </div>
+          <div class="result-box">
+            <span class="result-lbl">총 회수 현금</span>
+            <span class="result-num green" id="sell_totalRecovered">0 원</span>
+          </div>
+          <div class="result-box full border-top">
+            <span class="result-lbl">남은 잔여 수량 / 잔여 원금</span>
+            <span class="result-num yellow" id="sell_remainInfo">0 주 (원금 0 원)</span>
+          </div>
+        </div>
+        <button class="btn-image-save" onclick="generateShareCard('sell_page')">
+          📸 분할 매도 리포트 이미지 저장
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <section class="seo-box">
+    <h3>스마트 분할매수 & 목표 수익 전략</h3>
+    <p>
+      분할매수를 통해 평균 단가를 안정적으로 조절하고, 사전에 설정한 목표 주가에 도달했을 때 
+      단계적 분할 매도로 수익을 실현하세요. 명확한 계획이 성공적인 트레이딩의 핵심입니다.
+    </p>
+  </section>
+</div>
+
+<canvas id="shareCanvas" width="800" height="960"></canvas>
+
+<script>
+  let currentMainTab = 1;
+  let currentAssetMode = 'KR';
+  let activeSlotId = '';
+  let fxRate = 1380;
+
+  // 기본 슬롯 구조: 한국, 미국, 코인 각 카테고리별 기본 종목 탑재
+  let slots = [
+    {
+      id: 'slot_kr_1',
+      name: '삼성전자',
+      mode: 'KR',
+      tab1Rows: [ { price: '', qty: '' }, { price: '', qty: '' } ],
+      tab1Fee: 0.18,
+      tab1UseFee: false,
+      tab2: { p0: '', q0: '', pTarget: '' },
+      tab3: { p0: '', q0: '', rows: [ { price: '', qty: '' }, { price: '', qty: '' } ] }
+    },
+    {
+      id: 'slot_us_1',
+      name: '테슬라',
+      mode: 'US',
+      tab1Rows: [ { price: '', qty: '' }, { price: '', qty: '' } ],
+      tab1Fee: 0.25,
+      tab1UseFee: false,
+      tab2: { p0: '', q0: '', pTarget: '' },
+      tab3: { p0: '', q0: '', rows: [ { price: '', qty: '' }, { price: '', qty: '' } ] }
+    },
+    {
+      id: 'slot_coin_1',
+      name: '비트코인',
+      mode: 'COIN',
+      tab1Rows: [ { price: '', qty: '' }, { price: '', qty: '' } ],
+      tab1Fee: 0.05,
+      tab1UseFee: false,
+      tab2: { p0: '', q0: '', pTarget: '' },
+      tab3: { p0: '', q0: '', rows: [ { price: '', qty: '' }, { price: '', qty: '' } ] }
+    }
+  ];
+
+  /* ---------------- 중간 수정 시 커서 튕김 방지 포맷터 ---------------- */
+  function formatWithCursor(input) {
+    const rawVal = input.value;
+    const oldSel = input.selectionStart || 0;
+    const digitsBeforeCursor = rawVal.slice(0, oldSel).replace(/[^0-9.]/g, '').length;
+
+    const clean = rawVal.replace(/[^0-9.]/g, '');
+    if (!clean && clean !== '0') {
+      input.value = '';
+      return '';
+    }
+
+    const parts = clean.split('.');
+    let formatted = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    if (parts.length > 1) {
+      formatted += '.' + parts.slice(1).join('');
+    }
+
+    input.value = formatted;
+
+    let newPos = 0;
+    let countedDigits = 0;
+    for (let i = 0; i < formatted.length; i++) {
+      if (/[0-9.]/.test(formatted[i])) {
+        countedDigits++;
+      }
+      if (countedDigits === digitsBeforeCursor) {
+        newPos = i + 1;
+        break;
+      }
+    }
+
+    if (digitsBeforeCursor === 0) newPos = 0;
+    input.setSelectionRange(newPos, newPos);
+    return clean;
+  }
+
+  const cleanNumber = (val) => {
+    if (!val) return 0;
+    const clean = val.toString().replace(/,/g, '');
+    return isNaN(Number(clean)) ? 0 : Number(clean);
+  };
+
+  const formatNumber = (num, decimals = null) => {
+    if (num === '' || num === null || isNaN(num)) return '';
+    if (decimals !== null) num = Number(num).toFixed(decimals);
+    const parts = num.toString().split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return parts.join('.');
+  };
+
+  const getCurrencySymbol = () => currentAssetMode === 'US' ? '$ ' : '₩ ';
+
+  const formatKoreanUnit = (num) => {
+    if (!num || num <= 0) return '';
+    const units = ['', '만', '억', '조', '경', '해'];
+    try {
+      let str = Math.floor(num).toLocaleString('fullwide', { useGrouping: false });
+      let n = BigInt(str);
+      if (n === 0n) return '';
+      let res = [];
+      let unitIdx = 0;
+      while (n > 0n && unitIdx < units.length) {
+        const chunk = Number(n % 10000n);
+        if (chunk > 0) res.unshift(formatNumber(chunk) + units[unitIdx]);
+        n = n / 10000n;
+        unitIdx++;
+      }
+      return res.length > 0 ? `(약 ${res.slice(0, 2).join(' ')} 원)` : '';
+    } catch (e) {
+      return '';
+    }
+  };
+
+  const formatUSDWithKRW = (usdVal) => {
+    if (usdVal <= 0) return '$ 0';
+    const krwVal = usdVal * fxRate;
+    return `$ ${formatNumber(usdVal.toFixed(2))} ${formatKoreanUnit(krwVal)}`;
+  };
+
+  /* ---------------- 메인 3대 탭 전환 ---------------- */
+  function switchMainTab(idx) {
+    currentMainTab = idx;
+    [1, 2, 3].forEach(i => {
+      document.getElementById(`tabBtn${i}`).classList.toggle('active', i === idx);
+      document.getElementById(`tabContent${i}`).style.display = i === idx ? 'block' : 'none';
+    });
+  }
+
+  function loadFromStorage() {
+    const saved = localStorage.getItem('smart_calc_slots_v14');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          slots = parsed.map(s => ({
+            ...s,
+            mode: s.mode || 'KR',
+            tab2: s.tab2 || { p0: '', q0: '', pTarget: '' },
+            tab3: s.tab3 || { p0: '', q0: '', rows: [ { price: '', qty: '' }, { price: '', qty: '' } ] }
+          }));
+        }
+      } catch (e) {}
+    }
+    const savedFx = localStorage.getItem('smart_calc_fx');
+    if (savedFx) {
+      fxRate = cleanNumber(savedFx) || 1380;
+      document.getElementById('fxRate').value = formatNumber(fxRate);
+    }
+  }
+
+  function saveToStorage() {
+    localStorage.setItem('smart_calc_slots_v14', JSON.stringify(slots));
+    localStorage.setItem('smart_calc_fx', fxRate);
+  }
+
+  function getCurrentSlot() {
+    let slot = slots.find(s => s.id === activeSlotId);
+    if (!slot || slot.mode !== currentAssetMode) {
+      slot = slots.find(s => s.mode === currentAssetMode);
+      if (!slot) {
+        slot = createDefaultSlotForMode(currentAssetMode);
+        slots.push(slot);
+      }
+      activeSlotId = slot.id;
+    }
+    return slot;
+  }
+
+  function createDefaultSlotForMode(mode) {
+    const id = 'slot_' + mode.toLowerCase() + '_' + Date.now();
+    const defaultName = mode === 'KR' ? '국내 종목 1' : (mode === 'US' ? '미국 종목 1' : '코인 1');
+    const fee = mode === 'KR' ? 0.18 : (mode === 'US' ? 0.25 : 0.05);
+    return {
+      id: id,
+      name: defaultName,
+      mode: mode,
+      tab1Rows: [ { price: '', qty: '' }, { price: '', qty: '' } ],
+      tab1Fee: fee,
+      tab1UseFee: false,
+      tab2: { p0: '', q0: '', pTarget: '' },
+      tab3: { p0: '', q0: '', rows: [ { price: '', qty: '' }, { price: '', qty: '' } ] }
+    };
+  }
+
+  /* ---------------- 자산별 종목 필터링 렌더링 ---------------- */
+  function renderSlots() {
+    const bar = document.getElementById('slotBar');
+    bar.innerHTML = '';
+
+    const filteredSlots = slots.filter(s => s.mode === currentAssetMode);
+
+    if (!filteredSlots.some(s => s.id === activeSlotId)) {
+      if (filteredSlots.length > 0) {
+        activeSlotId = filteredSlots[0].id;
+      }
+    }
+
+    filteredSlots.forEach((s) => {
+      const chip = document.createElement('div');
+      chip.className = `slot-chip ${s.id === activeSlotId ? 'active' : ''}`;
+      chip.id = `chip_${s.id}`;
+      chip.innerHTML = `
+        <span onclick="switchSlot('${s.id}')">${s.name}</span>
+        ${filteredSlots.length > 1 ? `<span class="del-slot" onclick="deleteSlot('${s.id}')">×</span>` : ''}
+      `;
+      bar.appendChild(chip);
+    });
+
+    updateTitles();
+  }
+
+  function updateTitles() {
+    const curr = getCurrentSlot();
+    const group = document.getElementById('titleGroupTab1');
+    group.innerHTML = `
+      <span class="card-title-text" id="tab1Title">${curr.name} 분할매수</span>
+      <button class="btn-mini-rename" onclick="startRenameInline()">✏️ 수정</button>
+    `;
+    const t2Title = document.getElementById('tab2Title');
+    if (t2Title) t2Title.innerText = `🎯 [${curr.name}] 목표 주가 수익`;
+    const t3Title = document.getElementById('tab3Title');
+    if (t3Title) t3Title.innerText = `1. [${curr.name}] 기존 보유 상태`;
+  }
+
+  function startRenameInline() {
+    const curr = getCurrentSlot();
+    const group = document.getElementById('titleGroupTab1');
+    group.innerHTML = `
+      <input type="text" class="inline-edit-input" id="inlineRenameInput" value="${curr.name}">
+      <button class="btn-mini-rename" style="color:var(--accent); border-color:var(--accent);" onclick="finishRenameInline()">✓ 저장</button>
+    `;
+    const input = document.getElementById('inlineRenameInput');
+    input.focus();
+    input.select();
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter') finishRenameInline();
+      if (e.key === 'Escape') updateTitles();
+    };
+  }
+
+  function finishRenameInline() {
+    const input = document.getElementById('inlineRenameInput');
+    if (!input) return;
+    const nextName = input.value.trim();
+    if (nextName) {
+      const curr = getCurrentSlot();
+      curr.name = nextName;
+      saveToStorage();
+      renderSlots();
+    } else {
+      updateTitles();
+    }
+  }
+
+  function scrollSlots(distance) {
+    document.getElementById('slotBar').scrollBy({ left: distance, behavior: 'smooth' });
+  }
+
+  function switchSlot(id) {
+    activeSlotId = id;
+    renderSlots();
+    renderRows();
+    loadTab2ForCurrentSlot();
+    loadTab3ForCurrentSlot();
+
+    setTimeout(() => {
+      const activeEl = document.getElementById(`chip_${id}`);
+      if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }, 50);
+  }
+
+  function addNewSlot() {
+    const filteredCount = slots.filter(s => s.mode === currentAssetMode).length;
+    const prefix = currentAssetMode === 'KR' ? '국내 종목' : (currentAssetMode === 'US' ? '미국 종목' : '코인');
+    const newName = `${prefix} ${filteredCount + 1}`;
+    const newId = 'slot_' + currentAssetMode.toLowerCase() + '_' + Date.now();
+
+    const fee = currentAssetMode === 'KR' ? 0.18 : (currentAssetMode === 'US' ? 0.25 : 0.05);
+
+    slots.push({
+      id: newId,
+      name: newName,
+      mode: currentAssetMode,
+      tab1Rows: [ { price: '', qty: '' }, { price: '', qty: '' } ],
+      tab1Fee: fee,
+      tab1UseFee: false,
+      tab2: { p0: '', q0: '', pTarget: '' },
+      tab3: { p0: '', q0: '', rows: [ { price: '', qty: '' }, { price: '', qty: '' } ] }
+    });
+
+    activeSlotId = newId;
+    saveToStorage();
+    renderSlots();
+    renderRows();
+    loadTab2ForCurrentSlot();
+    loadTab3ForCurrentSlot();
+
+    const bar = document.getElementById('slotBar');
+    bar.scrollTo({ left: bar.scrollWidth, behavior: 'smooth' });
+
+    setTimeout(() => {
+      startRenameInline();
+    }, 60);
+  }
+
+  function deleteSlot(id) {
+    const filteredSlots = slots.filter(s => s.mode === currentAssetMode);
+    if (filteredSlots.length <= 1) {
+      alert('각 카테고리별로 최소 1개의 종목은 유지되어야 합니다.');
+      return;
+    }
+
+    if (confirm('해당 종목을 삭제하시겠습니까?')) {
+      slots = slots.filter(s => s.id !== id);
+      const remainingFiltered = slots.filter(s => s.mode === currentAssetMode);
+      activeSlotId = remainingFiltered[0].id;
+      saveToStorage();
+      renderSlots();
+      renderRows();
+      loadTab2ForCurrentSlot();
+      loadTab3ForCurrentSlot();
+    }
+  }
+
+  /* ---------------- 인라인 평단가 불러오기 ---------------- */
+  function importFromTab1(target, btnEl) {
+    const slot = getCurrentSlot();
+    let totalCost = 0;
+    let totalQty = 0;
+
+    slot.tab1Rows.forEach(r => {
+      const p = cleanNumber(r.price);
+      const q = cleanNumber(r.qty);
+      if (p > 0 && q > 0) {
+        totalCost += p * q;
+        totalQty += q;
+      }
+    });
+
+    if (totalQty <= 0) {
+      if (btnEl) {
+        const orig = btnEl.innerText;
+        btnEl.innerText = '⚠️ 매수 내역 없음';
+        btnEl.style.color = 'var(--danger)';
+        btnEl.style.borderColor = 'var(--danger)';
+        setTimeout(() => {
+          btnEl.innerText = orig;
+          btnEl.style.color = '';
+          btnEl.style.borderColor = '';
+        }, 1200);
+      }
+      return;
+    }
+
+    const finalAvg = totalCost / totalQty;
+    const avgFormatted = currentAssetMode === 'KR' ? Math.round(finalAvg) : Number(finalAvg.toFixed(3));
+    const qtyFormatted = currentAssetMode === 'COIN' ? Number(totalQty.toFixed(6)) : (currentAssetMode === 'US' ? Number(totalQty.toFixed(2)) : totalQty);
+
+    if (target === 'tab2') {
+      slot.tab2.p0 = avgFormatted;
+      slot.tab2.q0 = qtyFormatted;
+      document.getElementById('t2_p0').value = formatNumber(avgFormatted);
+      document.getElementById('t2_q0').value = formatNumber(qtyFormatted);
+      if (currentAssetMode === 'KR') {
+        document.getElementById('t2_p0_hint').innerText = formatKoreanUnit(avgFormatted);
+      }
+      calculateGoal();
+    } else if (target === 'tab3') {
+      slot.tab3.p0 = avgFormatted;
+      slot.tab3.q0 = qtyFormatted;
+      document.getElementById('sell_p0').value = formatNumber(avgFormatted);
+      document.getElementById('sell_q0').value = formatNumber(qtyFormatted);
+      if (currentAssetMode === 'KR') {
+        document.getElementById('sell_p0_hint').innerText = formatKoreanUnit(avgFormatted);
+      }
+      updateAllSellRowLabels();
+      calculateSell();
+    }
+
+    saveToStorage();
+
+    if (btnEl) {
+      const orig = btnEl.innerText;
+      btnEl.innerText = '✅ 불러오기 완료!';
+      btnEl.style.color = 'var(--accent)';
+      btnEl.style.borderColor = 'var(--accent)';
+      setTimeout(() => {
+        btnEl.innerText = orig;
+        btnEl.style.color = '';
+        btnEl.style.borderColor = '';
+      }, 1200);
+    }
+  }
+
+  /* ---------------- 자산 모드 (한국/미국/코인 탭 전환) ---------------- */
+  const feePresetsData = {
+    KR: [{ label: '기본 (0.18%)', val: 0.18 }, { label: '우대 (0.15%)', val: 0.15 }],
+    US: [{ label: '기본 (0.25%)', val: 0.25 }, { label: '우대 (0.07%)', val: 0.07 }],
+    COIN: [{ label: '업비트 (0.05%)', val: 0.05 }, { label: '빗썸 (0.04%)', val: 0.04 }, { label: '해외 (0.02%)', val: 0.02 }]
+  };
+
+  function setAssetMode(mode) {
+    currentAssetMode = mode;
+
+    document.getElementById('mode_kr').classList.toggle('active', mode === 'KR');
+    document.getElementById('mode_us').classList.toggle('active', mode === 'US');
+    document.getElementById('mode_coin').classList.toggle('active', mode === 'COIN');
+    document.getElementById('fxBar').style.display = mode === 'US' ? 'flex' : 'none';
+
+    const filtered = slots.filter(s => s.mode === mode);
+    if (filtered.length > 0) {
+      activeSlotId = filtered[0].id;
+    } else {
+      const newSlot = createDefaultSlotForMode(mode);
+      slots.push(newSlot);
+      activeSlotId = newSlot.id;
+    }
+
+    renderFeePresets();
+    saveToStorage();
+    renderSlots();
+    renderRows();
+    loadTab2ForCurrentSlot();
+    loadTab3ForCurrentSlot();
+  }
+
+  function onFxChange(input) {
+    const clean = formatWithCursor(input);
+    fxRate = cleanNumber(clean) || 1380;
+    saveToStorage();
+    calculateTab1();
+    calculateGoal();
+  }
+
+  async function fetchLiveFxRate(btnEl) {
+    if (btnEl) {
+      btnEl.innerText = '⏳ 조회 중...';
+      btnEl.disabled = true;
+    }
+    try {
+      const res = await fetch('https://open.er-api.com/v6/latest/USD');
+      const data = await res.json();
+      if (data && data.rates && data.rates.KRW) {
+        fxRate = Math.round(data.rates.KRW);
+        const input = document.getElementById('fxRate');
+        if (input) input.value = formatNumber(fxRate);
+        saveToStorage();
+        calculateTab1();
+        calculateGoal();
+        if (btnEl) {
+          btnEl.innerText = '✅ 시세 반영!';
+          setTimeout(() => { btnEl.innerText = '🔄 실시간 시세'; btnEl.disabled = false; }, 1500);
+        }
+        return;
+      }
+    } catch (e) {
+      console.warn('Live FX fetch failed, fallback to manual');
+    }
+    if (btnEl) {
+      btnEl.innerText = '⚠️ 시세 확인 불가';
+      setTimeout(() => { btnEl.innerText = '🔄 실시간 시세'; btnEl.disabled = false; }, 1500);
+    }
+  }
+
+  function renderFeePresets() {
+    const container = document.getElementById('feePresetList');
+    container.innerHTML = '';
+    const presets = feePresetsData[currentAssetMode] || [];
+    const slot = getCurrentSlot();
+
+    presets.forEach(p => {
+      const btn = document.createElement('button');
+      btn.className = `preset-chip ${slot.tab1Fee === p.val ? 'active' : ''}`;
+      btn.innerText = p.label;
+      btn.onclick = () => selectFeePreset(p.val);
+      container.appendChild(btn);
+    });
+
+    const customBtn = document.createElement('button');
+    const isCustom = !presets.some(p => p.val === slot.tab1Fee);
+    customBtn.className = `preset-chip ${isCustom ? 'active' : ''}`;
+    customBtn.innerText = '직접 입력';
+    customBtn.onclick = () => document.getElementById('t1_feeRate').focus();
+    container.appendChild(customBtn);
+
+    document.getElementById('t1_feeRate').value = slot.tab1Fee || presets[0].val;
+    document.getElementById('t1_useFee').checked = slot.tab1UseFee || false;
+  }
+
+  function selectFeePreset(val) {
+    const slot = getCurrentSlot();
+    slot.tab1Fee = val;
+    slot.tab1UseFee = true;
+    document.getElementById('t1_useFee').checked = true;
+    document.getElementById('t1_feeRate').value = val;
+    renderFeePresets();
+    saveToStorage();
+    calculateTab1();
+  }
+
+  function onCustomFeeInput(input) {
+    const clean = input.value.replace(/[^0-9.]/g, '');
+    const num = cleanNumber(clean);
+    input.value = clean;
+    const slot = getCurrentSlot();
+    slot.tab1Fee = num;
+    renderFeePresets();
+    saveToStorage();
+    calculateTab1();
+  }
+
+  function toggleFeeUse() {
+    const slot = getCurrentSlot();
+    slot.tab1UseFee = document.getElementById('t1_useFee').checked;
+    saveToStorage();
+    calculateTab1();
+  }
+
+  /* ---------------- TAB 1: 분할매수 평단가 ---------------- */
+  function renderRows() {
+    const slot = getCurrentSlot();
+    const container = document.getElementById('rowContainer');
+    container.innerHTML = '';
+
+    slot.tab1Rows.forEach((row, idx) => {
+      const p = cleanNumber(row.price);
+      const q = cleanNumber(row.qty);
+      const rowSum = p * q;
+
+      let sumStr = '-';
+      if (rowSum > 0) {
+        if (currentAssetMode === 'US') sumStr = `매수액: ${formatUSDWithKRW(rowSum)}`;
+        else sumStr = `매수액: ${getCurrencySymbol()}${formatNumber(Math.round(rowSum))} ${formatKoreanUnit(rowSum)}`;
+      }
+
+      const card = document.createElement('div');
+      card.className = 'slim-row';
+      card.innerHTML = `
+        <div class="slim-row-main">
+          <div class="row-num-badge">${idx + 1}차</div>
+          <div>
+            <input type="text" class="input-box" inputmode="decimal" placeholder="매수가 (${getCurrencySymbol().trim()})"
+              value="${row.price ? formatNumber(row.price) : ''}"
+              oninput="onRowFieldInput(${idx}, 'price', this)">
+          </div>
+          <div class="qty-wrap">
+            <input type="text" class="input-box" inputmode="decimal" id="row_q_${idx}" placeholder="수량"
+              value="${row.qty ? formatNumber(row.qty) : ''}"
+              oninput="onRowFieldInput(${idx}, 'qty', this)">
+            ${idx > 0 ? `
+              <button class="btn-quick" title="직전 차수 수량 동일 복사" onclick="copyPrevQty(${idx})">= 수량</button>
+              <button class="btn-quick" title="직전 차수 총 매수금액과 동일하게 수량 계산" onclick="copyPrevCost(${idx})">= 금액</button>
+            ` : ''}
+          </div>
+          <button class="del-btn" title="삭제" onclick="deleteRow(${idx})">×</button>
+        </div>
+        <div class="slim-row-sub">
+          <span class="sub-hint-text" id="row_p_hint_${idx}">${currentAssetMode === 'KR' && p > 0 ? formatKoreanUnit(p) : ''}</span>
+          <span class="sub-sum-text" id="row_sum_${idx}">${sumStr}</span>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+
+    renderFeePresets();
+    calculateTab1();
+  }
+
+  function copyPrevQty(idx) {
+    if (idx <= 0) return;
+    const slot = getCurrentSlot();
+    const prevQty = cleanNumber(slot.tab1Rows[idx - 1].qty);
+    if (prevQty <= 0) return;
+
+    slot.tab1Rows[idx].qty = prevQty;
+    const input = document.getElementById(`row_q_${idx}`);
+    if (input) input.value = formatNumber(prevQty);
+
+    updateRowSum(idx);
+    saveToStorage();
+    calculateTab1();
+  }
+
+  function copyPrevCost(idx) {
+    if (idx <= 0) return;
+    const slot = getCurrentSlot();
+    const prevP = cleanNumber(slot.tab1Rows[idx - 1].price);
+    const prevQ = cleanNumber(slot.tab1Rows[idx - 1].qty);
+    const prevCost = prevP * prevQ;
+
+    const currP = cleanNumber(slot.tab1Rows[idx].price);
+    if (prevCost <= 0 || currP <= 0) {
+      alert('현재 차수의 매수가를 먼저 입력해주세요!');
+      return;
+    }
+
+    let calculatedQty = prevCost / currP;
+    if (currentAssetMode === 'KR') {
+      calculatedQty = Math.round(calculatedQty);
+    } else {
+      calculatedQty = Number(calculatedQty.toFixed(4));
+    }
+
+    slot.tab1Rows[idx].qty = calculatedQty;
+    const input = document.getElementById(`row_q_${idx}`);
+    if (input) input.value = formatNumber(calculatedQty);
+
+    updateRowSum(idx);
+    saveToStorage();
+    calculateTab1();
+  }
+
+  function updateRowSum(idx) {
+    const slot = getCurrentSlot();
+    const p = cleanNumber(slot.tab1Rows[idx].price);
+    const q = cleanNumber(slot.tab1Rows[idx].qty);
+    const rowSum = p * q;
+    const sumEl = document.getElementById(`row_sum_${idx}`);
+    if (sumEl) {
+      if (rowSum > 0) {
+        sumEl.innerText = currentAssetMode === 'US' ? `매수액: ${formatUSDWithKRW(rowSum)}` : `매수액: ${getCurrencySymbol()}${formatNumber(Math.round(rowSum))} ${formatKoreanUnit(rowSum)}`;
+      } else {
+        sumEl.innerText = '-';
+      }
+    }
+  }
+
+  function onRowFieldInput(idx, field, input) {
+    const clean = formatWithCursor(input);
+    const num = cleanNumber(clean);
+    const slot = getCurrentSlot();
+    slot.tab1Rows[idx][field] = clean ? num : '';
+
+    if (field === 'price') {
+      const hint = document.getElementById(`row_p_hint_${idx}`);
+      if (hint) hint.innerText = currentAssetMode === 'KR' ? formatKoreanUnit(num) : '';
+    }
+
+    updateRowSum(idx);
+    saveToStorage();
+    calculateTab1();
+  }
+
+  function addRow() {
+    const slot = getCurrentSlot();
+    slot.tab1Rows.push({ price: '', qty: '' });
+    saveToStorage();
+    renderRows();
+  }
+
+  function deleteRow(idx) {
+    const slot = getCurrentSlot();
+    if (slot.tab1Rows.length <= 1) slot.tab1Rows[0] = { price: '', qty: '' };
+    else slot.tab1Rows.splice(idx, 1);
+    saveToStorage();
+    renderRows();
+  }
+
+  function resetTab1() {
+    if (confirm('현재 종목의 모든 분할매수 내역을 초기화하시겠습니까?')) {
+      const slot = getCurrentSlot();
+      slot.tab1Rows = [{ price: '', qty: '' }, { price: '', qty: '' }];
+      saveToStorage();
+      renderRows();
+    }
+  }
+
+  function calculateTab1() {
+    const slot = getCurrentSlot();
+    let totalCost = 0;
+    let totalQty = 0;
+
+    slot.tab1Rows.forEach(r => {
+      const p = cleanNumber(r.price);
+      const q = cleanNumber(r.qty);
+      if (p > 0 && q > 0) {
+        totalCost += p * q;
+        totalQty += q;
+      }
+    });
+
+    const finalAvg = totalQty > 0 ? totalCost / totalQty : 0;
+    const currSym = getCurrencySymbol();
+
+    document.getElementById('t1_finalAvg').innerText = finalAvg > 0 ? `${currSym}${formatNumber(currentAssetMode === 'KR' ? Math.round(finalAvg) : finalAvg.toFixed(3))}` : '0';
+    document.getElementById('t1_totalQty').innerText = `${formatNumber(currentAssetMode === 'COIN' ? totalQty.toFixed(6) : (currentAssetMode === 'US' ? totalQty.toFixed(2) : totalQty))} ${currentAssetMode === 'COIN' ? '코인' : '주'}`;
+
+    if (currentAssetMode === 'US') {
+      document.getElementById('t1_totalCost').innerText = formatUSDWithKRW(totalCost);
+    } else {
+      document.getElementById('t1_totalCost').innerText = `${currSym}${formatNumber(Math.round(totalCost))} ${formatKoreanUnit(totalCost)}`;
+    }
+
+    const useFee = document.getElementById('t1_useFee').checked;
+    const feeRate = cleanNumber(document.getElementById('t1_feeRate').value) / 100;
+    const bepWrap = document.getElementById('t1_bepWrap');
+
+    if (useFee && finalAvg > 0) {
+      const bep = (finalAvg * (1 + feeRate)) / (1 - feeRate);
+      bepWrap.style.display = 'block';
+      document.getElementById('t1_bepPrice').innerText = `${currSym}${formatNumber(currentAssetMode === 'KR' ? Math.round(bep) : bep.toFixed(3))}`;
+    } else {
+      bepWrap.style.display = 'none';
+    }
+  }
+
+  /* ---------------- TAB 2: 목표가 수익 & 도파민 보상 ---------------- */
+  function loadTab2ForCurrentSlot() {
+    const slot = getCurrentSlot();
+    const t2 = slot.tab2 || { p0: '', q0: '', pTarget: '' };
+    document.getElementById('t2_p0').value = t2.p0 ? formatNumber(t2.p0) : '';
+    document.getElementById('t2_q0').value = t2.q0 ? formatNumber(t2.q0) : '';
+    document.getElementById('t2_pTarget').value = t2.pTarget ? formatNumber(t2.pTarget) : '';
+
+    if (currentAssetMode === 'KR' && t2.p0) {
+      document.getElementById('t2_p0_hint').innerText = formatKoreanUnit(cleanNumber(t2.p0));
+    } else {
+      document.getElementById('t2_p0_hint').innerText = '';
+    }
+    if (currentAssetMode === 'KR' && t2.pTarget) {
+      document.getElementById('t2_pTarget_hint').innerText = formatKoreanUnit(cleanNumber(t2.pTarget));
+    } else {
+      document.getElementById('t2_pTarget_hint').innerText = '';
+    }
+    calculateGoal();
+  }
+
+  function getRandomDopamineReward(won) {
+    if (won < 20000) return null;
+
+    if (won >= 100000000000000000000) {
+      return { icon: '🪐', text: `🎉 [최종 목표 달성] 전 세계 지구상 모든 자산 통매수 & 인류 역사상 가장 위대한 거부 등극!` };
+    }
+
+    let tierOptions = [];
+
+    if (won < 100000) {
+      const n1 = Math.floor(won / 25000);
+      const n2 = Math.floor(won / 32000);
+      const n3 = Math.floor(won / 4500);
+      tierOptions = [
+        { icon: '🍗', text: `🎉 목표 달성 시 황금올리브 치킨 ${formatNumber(n1)}마리 파티!` },
+        { icon: '🍕', text: `🎉 목표 달성 시 도미노 피자 블랙타이거 슈림프 ${formatNumber(n2)}판 주문!` },
+        { icon: '☕', text: `🎉 목표 달성 시 스타벅스 아이스 아메리카노 ${formatNumber(n3)}잔 쾌척!` }
+      ];
+    } else if (won < 500000) {
+      const n1 = Math.floor(won / 120000);
+      tierOptions = [
+        { icon: '🍣', text: `🎉 목표 달성 시 하이엔드 스시 오마카세 디너 ${formatNumber(n1)}회 코스!` },
+        { icon: '🥩', text: `🎉 목표 달성 시 투뿔 한우 살치살 배 터질 때까지 외식!` },
+        { icon: '🎧', text: `🎉 목표 달성 시 애플 에어팟 프로 노이즈캔슬링 즉시 장착!` }
+      ];
+    } else if (won < 1500000) {
+      tierOptions = [
+        { icon: '🎮', text: `🎉 목표 달성 시 플레이스테이션 5 프로 풀패키지 현금 결제!` },
+        { icon: '🏨', text: `🎉 목표 달성 시 서울 신라호텔 스위트룸 럭셔리 호캉스!` },
+        { icon: '🖥️', text: `🎉 목표 달성 시 4K 울트라기어 OLED 게이밍 모니터 장만!` }
+      ];
+    } else if (won < 5000000) {
+      const n1 = Math.floor(won / 1700000);
+      tierOptions = [
+        { icon: '📱', text: `🎉 목표 달성 시 최신 아이폰 16 Pro ${formatNumber(n1)}대 현금 완납!` },
+        { icon: '💻', text: `🎉 목표 달성 시 최신 애플 맥북 프로 풀옵션 장만!` },
+        { icon: '🥩', text: `🎉 목표 달성 시 소중한 사람들에게 한우 오마카세 풀코스 쏜다!` }
+      ];
+    } else if (won < 20000000) {
+      const n1 = Math.floor(won / 4000000);
+      tierOptions = [
+        { icon: '✈️', text: `🎉 목표 달성 시 유럽 비즈니스 클래스 왕복 ${formatNumber(n1)}회 여행!` },
+        { icon: '🏖️', text: `🎉 목표 달성 시 하와이 와이키키 5성급 리조트 2주 살기!` },
+        { icon: '⌚', text: `🎉 목표 달성 시 오메가 문워치 프로페셔널 손목에 장착!` }
+      ];
+    } else if (won < 80000000) {
+      tierOptions = [
+        { icon: '🏎️', text: `🎉 목표 달성 시 제네시스 GV80 신차 풀옵션 현금 일시불 출고!` },
+        { icon: '⌚', text: `🎉 목표 달성 시 롤렉스 서브마리너 매장 즉시 성골 출고!` },
+        { icon: '💎', text: `🎉 목표 달성 시 백화점 1층 명품관 VIP 라운지 프리패스 쇼핑!` }
+      ];
+    } else if (won < 200000000) {
+      tierOptions = [
+        { icon: '🏎️', text: `🎉 목표 달성 시 포르쉐 911 카레라 신차 계약서 도장 쾅!` },
+        { icon: '🛥️', text: `🎉 목표 달성 시 나만의 개인 요트 1척 한강에 띄우기!` },
+        { icon: '🏕️', text: `🎉 목표 달성 시 최고급 프리미엄 캠핑카 풀옵션 일시불 매입!` }
+      ];
+    } else if (won < 1000000000) {
+      tierOptions = [
+        { icon: '👑', text: `🎉 목표 달성 시 롤렉스 데이토나 금통 + 페라리 슈퍼카 차고 입성!` },
+        { icon: '🏖️', text: `🎉 목표 달성 시 제주도 애월 바다 한눈에 보이는 오션뷰 풀빌라 별장 매입!` },
+        { icon: '🏢', text: `🎉 목표 달성 시 매달 월세 따박따박 나오는 알짜배기 상가 소유!` }
+      ];
+    } else if (won < 5000000000) {
+      tierOptions = [
+        { icon: '🏙️', text: `🎉 목표 달성 시 강남 반포 아크로리버파크 한강뷰 아파트 입주!` },
+        { icon: '🏢', text: `🎉 목표 달성 시 서울 마포·용산 역세권 신축 아파트 현금 완납!` },
+        { icon: '☕', text: `🎉 목표 달성 시 스타벅스 입점한 강남 대로변 꼬마빌딩 건물주 등극!` }
+      ];
+    } else if (won < 50000000000) {
+      tierOptions = [
+        { icon: '🏛️', text: `🎉 목표 달성 시 압구정 현대아파트 65평 + 도산대로 빌딩주 등극!` },
+        { icon: '🌴', text: `🎉 목표 달성 시 하와이 와이키키 해변 앞 초호화 펜트하우스 보유!` },
+        { icon: '🏨', text: `🎉 목표 달성 시 제주도 5성급 부티크 호텔 통째로 매수!` }
+      ];
+    } else if (won < 1000000000000) {
+      tierOptions = [
+        { icon: '🛩️', text: `🎉 목표 달성 시 걸프스트림 개인 전용기 + 공항 전용 활주로 이용!` },
+        { icon: '🏝️', text: `🎉 목표 달성 시 남태평양 나만의 에메랄드빛 프라이빗 섬 1개 통매수!` },
+        { icon: '🏢', text: `🎉 목표 달성 시 서울 강남 테헤란로 20층 랜드마크 프라임 타워 빌딩주!` }
+      ];
+    } else if (won < 100000000000000) {
+      tierOptions = [
+        { icon: '🏟️', text: `🎉 목표 달성 시 프리미어리그 명문 축구팀 + F1 레이싱팀 구단주!` },
+        { icon: '💻', text: `🎉 목표 달성 시 엔비디아와 애플 이사회 핵심 대주주 등극!` },
+        { icon: '🏙️', text: `🎉 목표 달성 시 여의도 파크원과 IFC 전동 현금 통매입!` }
+      ];
+    } else if (won < 10000000000000000) {
+      tierOptions = [
+        { icon: '🚀', text: `🎉 목표 달성 시 스페이스X 인수하고 화성에 내 이름 딴 기지 건설!` },
+        { icon: '🌐', text: `🎉 목표 달성 시 삼성전자와 테슬라 주식 전부 쓸어담고 글로벌 1위 부호 등극!` },
+        { icon: '🏛️', text: `🎉 목표 달성 시 주요 선진국 1년 국가 총예산 전액 현금 지원 가능!` }
+      ];
+    } else {
+      tierOptions = [
+        { icon: '🪐', text: `🎉 목표 달성 시 달 표면 전 구역 소유권 선포 & 민간 우주정거장 완공!` },
+        { icon: '👑', text: `🎉 목표 달성 시 전 세계 모든 국가 부채 전액 탕감 & 지구연합 의장 취임!` },
+        { icon: '🛰️', text: `🎉 목표 달성 시 태양계 행성 자원 독점 채굴권 획득 & 우주 총독 등극!` }
+      ];
+    }
+
+    return tierOptions[Math.floor(Math.random() * tierOptions.length)];
+  }
+
+  function handleSmartInput(input, key) {
+    const clean = formatWithCursor(input);
+    const num = cleanNumber(clean);
+    const slot = getCurrentSlot();
+
+    if (key.startsWith('t2_')) {
+      const field = key.replace('t2_', '');
+      slot.tab2[field] = clean ? num : '';
+      if (currentAssetMode === 'KR' && (field === 'p0' || field === 'pTarget')) {
+        const hint = document.getElementById(`${key}_hint`);
+        if (hint) hint.innerText = formatKoreanUnit(num);
+      }
+      saveToStorage();
+      calculateGoal();
+    } else if (key.startsWith('sell_')) {
+      const field = key.replace('sell_', '');
+      slot.tab3[field] = clean ? num : '';
+      if (currentAssetMode === 'KR' && field === 'p0') {
+        const hint = document.getElementById('sell_p0_hint');
+        if (hint) hint.innerText = formatKoreanUnit(num);
+      }
+      saveToStorage();
+      updateAllSellRowLabels();
+      calculateSell();
+    }
+  }
+
+  function calculateGoal() {
+    const slot = getCurrentSlot();
+    const p0 = cleanNumber(slot.tab2.p0);
+    const q0 = cleanNumber(slot.tab2.q0);
+    const pTarget = cleanNumber(slot.tab2.pTarget);
+    const currSym = getCurrencySymbol();
+
+    if (!p0 || !q0 || !pTarget) {
+      document.getElementById('t2_estProfit').innerText = '0 원';
+      document.getElementById('t2_estReturn').innerText = '+0.00%';
+      document.getElementById('t2_estTotalRecover').innerText = '0 원';
+      document.getElementById('rewardBox').style.display = 'none';
+      return;
+    }
+
+    const initialCost = p0 * q0;
+    const targetRecover = pTarget * q0;
+    const profit = targetRecover - initialCost;
+    const returnRate = ((pTarget - p0) / p0) * 100;
+
+    const profitEl = document.getElementById('t2_estProfit');
+    const returnEl = document.getElementById('t2_estReturn');
+
+    if (currentAssetMode === 'US') {
+      profitEl.innerText = `${profit >= 0 ? '+' : ''}${formatUSDWithKRW(profit)}`;
+      document.getElementById('t2_estTotalRecover').innerText = formatUSDWithKRW(targetRecover);
+    } else {
+      profitEl.innerText = `${profit >= 0 ? '+' : ''}${currSym}${formatNumber(Math.round(profit))} ${formatKoreanUnit(Math.abs(profit))}`;
+      document.getElementById('t2_estTotalRecover').innerText = `${currSym}${formatNumber(Math.round(targetRecover))} ${formatKoreanUnit(targetRecover)}`;
+    }
+
+    profitEl.className = `result-num hero ${profit >= 0 ? 'green' : 'red'}`;
+    returnEl.innerText = `${returnRate >= 0 ? '+' : ''}${returnRate.toFixed(2)}%`;
+    returnEl.className = `result-num ${returnRate >= 0 ? 'green' : 'red'}`;
+
+    let wonProfit = profit;
+    if (currentAssetMode === 'US') wonProfit = profit * fxRate;
+
+    const reward = getRandomDopamineReward(wonProfit);
+    const rewardBox = document.getElementById('rewardBox');
+    if (reward) {
+      rewardBox.style.display = 'flex';
+      document.getElementById('rewardIcon').innerText = reward.icon;
+      document.getElementById('rewardText').innerText = reward.text;
+    } else {
+      rewardBox.style.display = 'none';
+    }
+  }
+
+  /* ---------------- TAB 3: 분할매도 손익 & 비중 칩 바 ---------------- */
+  function loadTab3ForCurrentSlot() {
+    const slot = getCurrentSlot();
+    const t3 = slot.tab3 || { p0: '', q0: '', rows: [ { price: '', qty: '' }, { price: '', qty: '' } ] };
+    document.getElementById('sell_p0').value = t3.p0 ? formatNumber(t3.p0) : '';
+    document.getElementById('sell_q0').value = t3.q0 ? formatNumber(t3.q0) : '';
+
+    if (currentAssetMode === 'KR' && t3.p0) {
+      document.getElementById('sell_p0_hint').innerText = formatKoreanUnit(cleanNumber(t3.p0));
+    } else {
+      document.getElementById('sell_p0_hint').innerText = '';
+    }
+
+    renderSellRows();
+  }
+
+  function renderSellRows() {
+    const slot = getCurrentSlot();
+    const container = document.getElementById('sellRowContainer');
+    container.innerHTML = '';
+    const lastIdx = slot.tab3.rows.length - 1;
+
+    slot.tab3.rows.forEach((row, idx) => {
+      const isLast = idx === lastIdx;
+      const card = document.createElement('div');
+      card.className = 'slim-row';
+      card.innerHTML = `
+        <div class="slim-row-main" style="grid-template-columns: 36px 1fr 1fr 22px;">
+          <div class="row-num-badge">${idx + 1}차</div>
+          <div>
+            <input type="text" class="input-box" inputmode="decimal" placeholder="매도가격"
+              value="${row.price ? formatNumber(row.price) : ''}"
+              oninput="onSellRowFieldInput(${idx}, 'price', this)">
+          </div>
+          <div>
+            <input type="text" class="input-box" inputmode="decimal" id="sell_q_${idx}" placeholder="매도수량"
+              value="${row.qty ? formatNumber(row.qty) : ''}"
+              oninput="onSellRowFieldInput(${idx}, 'qty', this)">
+          </div>
+          <button class="del-btn" title="삭제" onclick="deleteSellRow(${idx})">×</button>
+        </div>
+        <div class="pct-chips-bar">
+          <span style="font-size:0.62rem; color:var(--subtext); margin-right:auto;">총 보유 기준:</span>
+          <button class="pct-chip" onclick="applySellPct(${idx}, 0.10)">10%</button>
+          <button class="pct-chip" onclick="applySellPct(${idx}, 0.25)">25%</button>
+          <button class="pct-chip" onclick="applySellPct(${idx}, 0.333333)">33%</button>
+          <button class="pct-chip" onclick="applySellPct(${idx}, 0.50)">50%</button>
+          ${isLast ? `
+            <button class="pct-chip highlight" onclick="applyRemainingQty(${idx})">잔여 올인</button>
+          ` : `
+            <button class="pct-chip" onclick="applySellPct(${idx}, 1.0)">전량</button>
+          `}
+        </div>
+        <div class="slim-row-sub">
+          <span></span>
+          <span class="sub-sum-text" id="sell_row_profit_${idx}">손익: -</span>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+
+    updateAllSellRowLabels();
+    calculateSell();
+  }
+
+  function applySellPct(idx, pct) {
+    const slot = getCurrentSlot();
+    const totalQ = cleanNumber(slot.tab3.q0);
+    if (totalQ <= 0) {
+      alert('상단의 총 보유 수량을 먼저 입력해주세요!');
+      return;
+    }
+
+    let calculatedQty = totalQ * pct;
+    if (currentAssetMode === 'KR') {
+      calculatedQty = Math.round(calculatedQty);
+    } else {
+      calculatedQty = Number(calculatedQty.toFixed(4));
+    }
+
+    slot.tab3.rows[idx].qty = calculatedQty;
+    const input = document.getElementById(`sell_q_${idx}`);
+    if (input) input.value = formatNumber(calculatedQty);
+
+    saveToStorage();
+    updateSellRowLabel(idx);
+    calculateSell();
+  }
+
+  function applyRemainingQty(idx) {
+    const slot = getCurrentSlot();
+    const totalQ = cleanNumber(slot.tab3.q0);
+    if (totalQ <= 0) {
+      alert('상단의 총 보유 수량을 먼저 입력해주세요!');
+      return;
+    }
+
+    let soldBefore = 0;
+    for (let i = 0; i < idx; i++) {
+      soldBefore += cleanNumber(slot.tab3.rows[i].qty);
+    }
+
+    const remaining = Math.max(0, totalQ - soldBefore);
+    slot.tab3.rows[idx].qty = remaining;
+
+    const input = document.getElementById(`sell_q_${idx}`);
+    if (input) input.value = formatNumber(remaining);
+
+    saveToStorage();
+    updateSellRowLabel(idx);
+    calculateSell();
+  }
+
+  function onSellRowFieldInput(idx, field, input) {
+    const clean = formatWithCursor(input);
+    const num = cleanNumber(clean);
+    const slot = getCurrentSlot();
+    slot.tab3.rows[idx][field] = clean ? num : '';
+
+    saveToStorage();
+    updateSellRowLabel(idx);
+    calculateSell();
+  }
+
+  function updateSellRowLabel(idx) {
+    const slot = getCurrentSlot();
+    const p0 = cleanNumber(slot.tab3.p0);
+    const p = cleanNumber(slot.tab3.rows[idx].price);
+    const q = cleanNumber(slot.tab3.rows[idx].qty);
+    const profitEl = document.getElementById(`sell_row_profit_${idx}`);
+
+    if (p > 0 && q > 0 && p0 > 0) {
+      const profit = (p - p0) * q;
+      const rate = ((p - p0) / p0) * 100;
+      profitEl.innerText = `손익: ${profit >= 0 ? '+' : ''}${formatNumber(Math.round(profit))}원 (${rate >= 0 ? '+' : ''}${rate.toFixed(2)}%)`;
+      profitEl.style.color = profit >= 0 ? 'var(--accent)' : 'var(--danger)';
+    } else {
+      profitEl.innerText = '손익: -';
+      profitEl.style.color = 'var(--subtext)';
+    }
+  }
+
+  function updateAllSellRowLabels() {
+    const slot = getCurrentSlot();
+    slot.tab3.rows.forEach((_, idx) => updateSellRowLabel(idx));
+  }
+
+  function addSellRow() {
+    const slot = getCurrentSlot();
+    slot.tab3.rows.push({ price: '', qty: '' });
+    saveToStorage();
+    renderSellRows();
+  }
+
+  function deleteSellRow(idx) {
+    const slot = getCurrentSlot();
+    if (slot.tab3.rows.length <= 1) slot.tab3.rows[0] = { price: '', qty: '' };
+    else slot.tab3.rows.splice(idx, 1);
+    saveToStorage();
+    renderSellRows();
+  }
+
+  function resetSellRows() {
+    if (confirm('현재 종목의 분할 매도 내역을 초기화하시겠습니까?')) {
+      const slot = getCurrentSlot();
+      slot.tab3.rows = [{ price: '', qty: '' }, { price: '', qty: '' }];
+      saveToStorage();
+      renderSellRows();
+    }
+  }
+
+  function calculateSell() {
+    const slot = getCurrentSlot();
+    const p0 = cleanNumber(slot.tab3.p0);
+    const q0 = cleanNumber(slot.tab3.q0);
+
+    let totalRecovered = 0;
+    let totalSoldQty = 0;
+    let totalProfit = 0;
+
+    slot.tab3.rows.forEach(r => {
+      const p = cleanNumber(r.price);
+      const q = cleanNumber(r.qty);
+      if (p > 0 && q > 0) {
+        totalRecovered += p * q;
+        totalSoldQty += q;
+        if (p0 > 0) totalProfit += (p - p0) * q;
+      }
+    });
+
+    const remainQty = Math.max(0, q0 - totalSoldQty);
+    const remainCost = remainQty * p0;
+    const avgReturn = (p0 > 0 && totalSoldQty > 0) ? (totalProfit / (totalSoldQty * p0)) * 100 : 0;
+
+    const profitEl = document.getElementById('sell_totalProfit');
+    profitEl.innerText = `${totalProfit >= 0 ? '+' : ''}${formatNumber(Math.round(totalProfit))} 원 ${formatKoreanUnit(Math.abs(totalProfit))}`;
+    profitEl.style.color = totalProfit >= 0 ? 'var(--accent)' : 'var(--danger)';
+
+    const avgReturnEl = document.getElementById('sell_avgReturn');
+    avgReturnEl.innerText = `${avgReturn >= 0 ? '+' : ''}${avgReturn.toFixed(2)}%`;
+    avgReturnEl.style.color = avgReturn >= 0 ? 'var(--accent)' : 'var(--danger)';
+
+    document.getElementById('sell_totalRecovered').innerText = `${formatNumber(Math.round(totalRecovered))} 원`;
+    document.getElementById('sell_remainInfo').innerText = `${formatNumber(remainQty)} 주 (원금 ${formatNumber(Math.round(remainCost))} 원)`;
+  }
+
+  /* ---------------- 이미지 다운로드 ---------------- */
+  function generateShareCard(type) {
+    const canvas = document.getElementById('shareCanvas');
+    const ctx = canvas.getContext('2d');
+    const slot = getCurrentSlot();
+
+    const grad = ctx.createLinearGradient(0, 0, 0, 960);
+    grad.addColorStop(0, '#0f172a');
+    grad.addColorStop(1, '#020617');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 800, 960);
+
+    ctx.fillStyle = '#1e293b';
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 2;
+    roundRect(ctx, 40, 40, 720, 880, 24, true, true);
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 22px -apple-system, sans-serif';
+    ctx.fillText('⚡ SMART TRADING TOOL', 70, 95);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 36px -apple-system, sans-serif';
+    let cardTitle = `[ ${slot.name} ] 평단가 리포트`;
+    if (type === 'goal') cardTitle = `🎉 [ ${slot.name} ] 목표 달성 수익 리포트`;
+    else if (type === 'sell_page') cardTitle = `[ ${slot.name} ] 분할 매도 실현 손익`;
+
+    ctx.fillText(cardTitle, 70, 150);
+
+    ctx.strokeStyle = '#334155';
+    ctx.beginPath();
+    ctx.moveTo(70, 180);
+    ctx.lineTo(730, 180);
+    ctx.stroke();
+
+    let heroTitle = "최종 평균 단가";
+    let heroVal = document.getElementById('t1_finalAvg').innerText;
+    let sub1Title = "총 투자 금액";
+    let sub1Val = document.getElementById('t1_totalCost').innerText;
+    let sub2Title = "총 보유 수량";
+    let sub2Val = document.getElementById('t1_totalQty').innerText;
+
+    if (type === 'goal') {
+      heroTitle = "🎉 목표 달성 시 순수익";
+      heroVal = document.getElementById('t2_estProfit').innerText;
+      sub1Title = "예상 수익률";
+      sub1Val = document.getElementById('t2_estReturn').innerText;
+      sub2Title = "총 평가 회수금";
+      sub2Val = document.getElementById('t2_estTotalRecover').innerText;
+    } else if (type === 'sell_page') {
+      heroTitle = "총 실현 손익";
+      heroVal = document.getElementById('sell_totalProfit').innerText;
+      sub1Title = "평균 매도 수익률";
+      sub1Val = document.getElementById('sell_avgReturn').innerText;
+      sub2Title = "남은 잔여 수량";
+      sub2Val = document.getElementById('sell_remainInfo').innerText.split('(')[0];
+    }
+
+    ctx.fillStyle = '#0f172a';
+    roundRect(ctx, 70, 220, 660, 200, 18, true, false);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '22px -apple-system, sans-serif';
+    ctx.fillText(heroTitle, 100, 275);
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 50px -apple-system, sans-serif';
+    ctx.fillText(heroVal.split('(')[0], 100, 360);
+
+    ctx.fillStyle = '#0f172a';
+    roundRect(ctx, 70, 450, 315, 180, 16, true, false);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '20px -apple-system, sans-serif';
+    ctx.fillText(sub1Title, 95, 500);
+    ctx.fillStyle = '#10b981';
+    ctx.font = 'bold 28px -apple-system, sans-serif';
+    ctx.fillText(sub1Val.split(' ')[0], 95, 570);
+
+    ctx.fillStyle = '#0f172a';
+    roundRect(ctx, 415, 450, 315, 180, 16, true, false);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '20px -apple-system, sans-serif';
+    ctx.fillText(sub2Title, 440, 500);
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = 'bold 28px -apple-system, sans-serif';
+    ctx.fillText(sub2Val, 440, 570);
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = 'italic 19px -apple-system, sans-serif';
+    ctx.fillText('"원칙 있는 트레이딩과 스마트한 목표 달성"', 70, 710);
+
+    ctx.fillStyle = '#334155';
+    roundRect(ctx, 70, 780, 660, 90, 14, true, false);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = 'bold 22px -apple-system, sans-serif';
+    ctx.fillText('스마트 투자 계산기 | Stock & Crypto Toolkit', 100, 835);
+
+    const link = document.createElement('a');
+    link.download = `${slot.name}_투자리포트.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
+
+  function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y + height, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+    if (fill) ctx.fill();
+    if (stroke) ctx.stroke();
+  }
+
+  // 초기 로딩
+  loadFromStorage();
+  setAssetMode('KR');
+</script>
+
+</body>
+</html>
